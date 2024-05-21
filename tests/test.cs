@@ -79,4 +79,55 @@ public class OktaSessionExample
             Console.WriteLine($"Error: {ex.Message}");
         }
     }
+
+     public static async Task<JObject> ExchangeSessionIdForTokens(string sessionId, string oktaDomain, string clientId, string clientSecret, string redirectUri)
+    {
+        // Initialize HttpClientHandler to handle redirects manually
+        var handler = new HttpClientHandler
+        {
+            AllowAutoRedirect = false
+        };
+
+        using (var client = new HttpClient(handler))
+        {
+            // Step 1: Obtain Authorization Code using Session ID
+            var authorizeUrl = $"{oktaDomain}/oauth2/default/v1/authorize?" +
+                               $"client_id={clientId}&response_type=code&scope=openid%20profile%20email" +
+                               $"&redirect_uri={redirectUri}&state=application_state&sessionToken={sessionId}";
+
+            var authorizeResponse = await client.GetAsync(authorizeUrl);
+            if (authorizeResponse.StatusCode != System.Net.HttpStatusCode.Found)
+            {
+                throw new Exception("Failed to obtain authorization code.");
+            }
+
+            var location = authorizeResponse.Headers.Location;
+            var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(location.Query);
+            if (!query.TryGetValue("code", out var authorizationCode))
+            {
+                throw new Exception("Authorization code not found in the response.");
+            }
+
+            // Step 2: Exchange Authorization Code for Access and Refresh Tokens
+            var tokenEndpoint = $"{oktaDomain}/oauth2/default/v1/token";
+            var content = new FormUrlEncodedContent(new[]
+            {
+                new KeyValuePair<string, string>("grant_type", "authorization_code"),
+                new KeyValuePair<string, string>("code", authorizationCode),
+                new KeyValuePair<string, string>("redirect_uri", redirectUri),
+                new KeyValuePair<string, string>("client_id", clientId),
+                new KeyValuePair<string, string>("client_secret", clientSecret)
+            });
+
+            var tokenResponse = await client.PostAsync(tokenEndpoint, content);
+            if (!tokenResponse.IsSuccessStatusCode)
+            {
+                var errorContent = await tokenResponse.Content.ReadAsStringAsync();
+                throw new Exception($"Token request failed: {errorContent}");
+            }
+
+            var tokenResponseContent = await tokenResponse.Content.ReadAsStringAsync();
+            return JObject.Parse(tokenResponseContent);
+        }
+    }
 }
