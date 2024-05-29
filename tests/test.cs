@@ -131,3 +131,37 @@ public class OktaSessionExample
         }
     }
 }
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Start Okta Session</title>
+    <script>
+        async function startSession(accessToken) {
+            const response = await fetch('https://<your_okta_domain>/api/v1/sessions/me', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include' // This is important to include session cookies
+            });
+
+            if (response.ok) {
+                const sessionData = await response.json();
+                console.log('Session started', sessionData);
+            } else {
+                console.error('Failed to start session', response.statusText);
+            }
+        }
+
+        // Example usage: Replace 'yourAccessToken' with the actual access token
+        startSession('yourAccessToken');
+    </script>
+</head>
+<body>
+    <h1>Okta Session Starter</h1>
+</body>
+</html>
