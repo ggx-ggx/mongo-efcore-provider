@@ -132,7 +132,17 @@ public class OktaSessionExample
     }
 }
 
+curl -X POST "https://<your_okta_domain>/oauth2/default/v1/token" \
+-H "Accept: application/json" \
+-H "Content-Type: application/x-www-form-urlencoded" \
+-H "Cookie: sid=<your_session_id>" \
+-d "grant_type=authorization_code" \
+-d "redirect_uri=<your_redirect_uri>" \
+-d "client_id=<your_client_id>" \
+-d "client_secret=<your_client_secret>" \
+-d "code=<authorization_code>"
 
+    
 <!DOCTYPE html>
 <html lang="en">
 <head>
