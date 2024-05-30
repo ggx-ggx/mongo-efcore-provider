@@ -290,3 +290,64 @@ class Program
 }
 
 
+
+using System;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Threading;
+using System.Threading.Tasks;
+
+class LoggingHandler : DelegatingHandler
+{
+    public LoggingHandler(HttpMessageHandler innerHandler) : base(innerHandler) { }
+
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        // Log the request
+        Console.WriteLine("Request:");
+        Console.WriteLine(request.ToString());
+        if (request.Content != null)
+        {
+            Console.WriteLine(await request.Content.ReadAsStringAsync());
+        }
+        if (request.Headers.Contains("Cookie"))
+        {
+            Console.WriteLine("Cookies: " + string.Join("; ", request.Headers.GetValues("Cookie")));
+        }
+
+        // Send the request
+        var response = await base.SendAsync(request, cancellationToken);
+
+        // Log the response
+        Console.WriteLine("Response:");
+        Console.WriteLine(response.ToString());
+        if (response.Content != null)
+        {
+            Console.WriteLine(await response.Content.ReadAsStringAsync());
+        }
+
+        return response;
+    }
+}
+
+class Program
+{
+    static async Task Main(string[] args)
+    {
+        var handler = new LoggingHandler(new HttpClientHandler());
+        var client = new HttpClient(handler);
+
+        // Example request
+        var request = new HttpRequestMessage(HttpMethod.Get, "https://httpbin.org/get");
+        request.Headers.Add("Cookie", "exampleCookie=exampleValue");
+
+        var response = await client.SendAsync(request);
+        
+        Console.WriteLine("Cookies received:");
+        foreach (var cookie in response.Headers.GetValues("Set-Cookie"))
+        {
+            Console.WriteLine(cookie);
+        }
+    }
+}
+
