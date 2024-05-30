@@ -175,3 +175,118 @@ curl -X POST "https://<your_okta_domain>/oauth2/default/v1/token" \
     <h1>Okta Session Starter</h1>
 </body>
 </html>
+
+
+
+using System;
+using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Threading.Tasks;
+
+class Program
+{
+    static async Task Main(string[] args)
+    {
+        // Assume this is your initial response with cookies
+        HttpResponseMessage initialResponse = await GetInitialResponseAsync();
+
+        // Extract cookies from the response
+        CookieContainer cookieContainer = ExtractCookies(initialResponse);
+
+        // Create a new HttpClient with the extracted cookies
+        HttpClient clientWithCookies = CreateHttpClientWithCookies(cookieContainer);
+
+        // Use the new HttpClient to make another request
+        HttpResponseMessage newResponse = await clientWithCookies.GetAsync("https://your-target-url.com");
+
+        // Output the result (for demonstration purposes)
+        Console.WriteLine(await newResponse.Content.ReadAsStringAsync());
+    }
+
+    static async Task<HttpResponseMessage> GetInitialResponseAsync()
+    {
+        using (HttpClient client = new HttpClient())
+        {
+            // Make an initial request to get cookies
+            HttpResponseMessage response = await client.GetAsync("https://your-initial-url.com");
+            return response;
+        }
+    }
+
+    static CookieContainer ExtractCookies(HttpResponseMessage response)
+    {
+        CookieContainer cookieContainer = new CookieContainer();
+
+        if (response.Headers.TryGetValues("Set-Cookie", out var setCookieHeaders))
+        {
+            foreach (var header in setCookieHeaders)
+            {
+                var cookies = header.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
+                string cookieName = null;
+                string cookieValue = null;
+                string domain = null;
+                string path = "/";
+                bool secure = false;
+                bool httpOnly = false;
+
+                foreach (var cookie in cookies)
+                {
+                    var parts = cookie.Split('=');
+
+                    if (parts.Length == 2)
+                    {
+                        var name = parts[0].Trim();
+                        var value = parts[1].Trim();
+
+                        if (name.Equals("domain", StringComparison.OrdinalIgnoreCase))
+                        {
+                            domain = value;
+                        }
+                        else if (name.Equals("path", StringComparison.OrdinalIgnoreCase))
+                        {
+                            path = value;
+                        }
+                        else if (name.Equals("secure", StringComparison.OrdinalIgnoreCase))
+                        {
+                            secure = true;
+                        }
+                        else if (name.Equals("httponly", StringComparison.OrdinalIgnoreCase))
+                        {
+                            httpOnly = true;
+                        }
+                        else
+                        {
+                            cookieName = name;
+                            cookieValue = value;
+                        }
+                    }
+                }
+
+                if (cookieName != null && cookieValue != null && domain != null)
+                {
+                    Cookie newCookie = new Cookie(cookieName, cookieValue, path, domain)
+                    {
+                        Secure = secure,
+                        HttpOnly = httpOnly
+                    };
+                    cookieContainer.Add(newCookie);
+                }
+            }
+        }
+
+        return cookieContainer;
+    }
+
+    static HttpClient CreateHttpClientWithCookies(CookieContainer cookieContainer)
+    {
+        HttpClientHandler handler = new HttpClientHandler
+        {
+            CookieContainer = cookieContainer
+        };
+
+        return new HttpClient(handler);
+    }
+}
+
+
